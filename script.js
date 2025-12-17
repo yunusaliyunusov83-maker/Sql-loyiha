@@ -301,6 +301,18 @@ document.addEventListener('DOMContentLoaded', function() {
         if (icon) icon.className = 'fas fa-moon';
     }
     
+
+
+
+
+
+
+
+
+
+    
+
+
     // Smooth scroll for navigation links
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
         anchor.addEventListener('click', function (e) {
