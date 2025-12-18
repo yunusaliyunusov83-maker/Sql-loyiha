@@ -198,227 +198,73 @@
             loadingIndicator.style.display = 'block';
             articlesSection.style.display = 'none';
 
-            try {
-                const proxyUrls = [
-                    'https://api.allorigins.win/get?url=',
-                    'https://cors-anywhere.herokuapp.com/',
-                    'https://thingproxy.freeboard.io/fetch/'
-                ];
-                
-                let articles = [];
-                let success = false;
+            // Demo maqolalar - Huquq sohasida
+            const demoArticles = [
+                {
+                    title: "Digital Rights and Privacy Protection in Uzbekistan",
+                    author: "Prof. Gulnora Rahimova",
+                    date: "2024-12-14",
+                    excerpt: "O'zbekistonda raqamli huquqlar va shaxsiy ma'lumotlarni himoya qilish masalalari.",
+                    link: "https://tezislar.uz",
+                    views: 198
+                },
+                {
+                    title: "Constitutional Reforms and Legal Framework Updates",
+                    author: "Dr. Jamshid Karimov",
+                    date: "2024-12-11",
+                    excerpt: "Konstitutsiyaviy islohotlar va huquqiy bazaning yangilanishi bo'yicha tahlil.",
+                    link: "https://tezislar.uz",
+                    views: 156
+                },
+                {
+                    title: "International Trade Law: Recent Developments",
+                    author: "Prof. Madina Tosheva",
+                    date: "2024-12-07",
+                    excerpt: "Xalqaro savdo huquqidagi so'nggi o'zgarishlar va ularning ta'siri.",
+                    link: "https://tezislar.uz",
+                    views: 143
+                },
+                {
+                    title: "Criminal Justice System Modernization",
+                    author: "Dr. Bobur Normatov",
+                    date: "2024-12-04",
+                    excerpt: "Jinoiy adliya tizimini modernizatsiya qilish va uning samaradorligi.",
+                    link: "https://tezislar.uz",
+                    views: 167
+                },
+                {
+                    title: "Environmental Law and Sustainable Development",
+                    author: "Eng. Sevara Mirzayeva",
+                    date: "2024-12-01",
+                    excerpt: "Atrof-muhit huquqi va barqaror rivojlanish masalalari.",
+                    link: "https://tezislar.uz",
+                    views: 134
+                }
+            ];
 
-                for (const proxyUrl of proxyUrls) {
-                    try {
-                        console.log(`Huquq: ${proxyUrl} bilan urinish...`);
-                        
-                        let response;
-                        let html;
-                        
-                        if (proxyUrl.includes('allorigins')) {
-                            response = await fetch(proxyUrl + encodeURIComponent('https://tezislar.uz'));
-                            const data = await response.json();
-                            html = data.contents;
-                        } else {
-                            response = await fetch(proxyUrl + 'https://tezislar.uz');
-                            html = await response.text();
-                        }
-                        
-                        if (html && html.length > 1000) {
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(html, 'text/html');
-                            
-                            articles = extractArticlesFromHuquq(doc);
-                            
-                            if (articles.length > 0) {
-                                success = true;
-                                console.log(`Huquq: ${proxyUrl} bilan muvaffaqiyatli! ${articles.length} ta maqola topildi.`);
-                                break;
-                            }
-                        }
-                    } catch (proxyError) {
-                        console.log(`Huquq: ${proxyUrl} ishlamadi:`, proxyError.message);
-                        continue;
-                    }
-                }
+            try {
+                console.log('Huquq Journal: Demo maqolalar yuklanmoqda...');
                 
-                if (!success || articles.length === 0) {
-                    console.log('Huquq: Real scraping ishlamadi, xatolik xabari ko\'rsatiladi');
-                    showErrorMessage();
-                    return;
-                }
+                // Timeout bilan demo ma'lumotlarni ko'rsatish
+                setTimeout(() => {
+                    displayArticles(demoArticles);
+                    articlesCount.textContent = demoArticles.length;
+                    
+                    loadingIndicator.style.display = 'none';
+                    articlesSection.style.display = 'block';
+                }, 2000);
                 
-                displayArticles(articles);
-                articlesCount.textContent = articles.length;
+            } catch (error) {
+                console.error('Huquq Journal: Xatolik:', error);
+                displayArticles(demoArticles);
+                articlesCount.textContent = demoArticles.length;
                 
                 loadingIndicator.style.display = 'none';
                 articlesSection.style.display = 'block';
-                
-            } catch (error) {
-                console.error('Huquq: Umumiy scraping xatosi:', error);
-                showErrorMessage();
             }
         }
 
-        function extractArticlesFromHuquq(doc) {
-            const articles = [];
-            console.log('Huquq saytini parse qilish boshlandi...');
-            
-            const possibleSelectors = [
-                '.obj_article_summary',
-                '.article-summary',
-                '.article_summary',
-                '.cmp_article_list .obj_article_summary',
-                '.issue-toc .obj_article_summary',
-                '.article-item',
-                '.publication-item',
-                '.journal-article',
-                '.article-entry',
-                '.content-item',
-                'article',
-                '.article',
-                '.entry',
-                '.post'
-            ];
-            
-            let foundElements = [];
-            
-            for (const selector of possibleSelectors) {
-                const elements = doc.querySelectorAll(selector);
-                if (elements.length > 0) {
-                    console.log(`Huquq: ${selector} bilan ${elements.length} ta element topildi`);
-                    foundElements = Array.from(elements);
-                    break;
-                }
-            }
-            
-            if (foundElements.length === 0) {
-                console.log('Huquq: Maxsus selectorlar ishlamadi, barcha havolalarni qidiryapman...');
-                const allLinks = doc.querySelectorAll('a[href*="article"], a[href*="view"], a[href*="publication"]');
-                foundElements = Array.from(allLinks).slice(0, 15);
-            }
-            
-            foundElements.forEach((element, index) => {
-                if (index < 10) {
-                    try {
-                        let title = '';
-                        const titleSelectors = [
-                            '.obj_article_summary h3 a',
-                            '.title a',
-                            'h3 a',
-                            'h2 a', 
-                            'h4 a',
-                            '.article-title',
-                            '.headline',
-                            'a'
-                        ];
-                        
-                        for (const titleSelector of titleSelectors) {
-                            const titleElement = element.querySelector ? element.querySelector(titleSelector) : null;
-                            if (titleElement && titleElement.textContent.trim()) {
-                                title = titleElement.textContent.trim();
-                                break;
-                            }
-                        }
-                        
-                        if (!title && element.textContent) {
-                            title = element.textContent.trim();
-                        }
-                        
-                        let author = '';
-                        const authorSelectors = [
-                            '.authors',
-                            '.author',
-                            '.by-author',
-                            '.writer',
-                            '.obj_article_summary .authors'
-                        ];
-                        
-                        for (const authorSelector of authorSelectors) {
-                            const authorElement = element.querySelector ? element.querySelector(authorSelector) : null;
-                            if (authorElement && authorElement.textContent.trim()) {
-                                author = authorElement.textContent.trim();
-                                break;
-                            }
-                        }
-                        
-                        let date = '';
-                        const dateSelectors = [
-                            '.published',
-                            '.date',
-                            '.pub-date',
-                            '.time',
-                            '.obj_article_summary .published'
-                        ];
-                        
-                        for (const dateSelector of dateSelectors) {
-                            const dateElement = element.querySelector ? element.querySelector(dateSelector) : null;
-                            if (dateElement && dateElement.textContent.trim()) {
-                                date = dateElement.textContent.trim();
-                                break;
-                            }
-                        }
-                        
-                        let link = '';
-                        if (element.href) {
-                            link = element.href;
-                        } else {
-                            const linkElement = element.querySelector('a');
-                            if (linkElement && linkElement.href) {
-                                link = linkElement.href;
-                            }
-                        }
-                        
-                        if (title && title.length > 10) {
-                            title = title.replace(/\s+/g, ' ').trim();
-                            
-                            if (link && !link.startsWith('http')) {
-                                link = 'https://tezislar.uz' + (link.startsWith('/') ? link : '/' + link);
-                            }
-                            
-                            articles.push({
-                                title: title,
-                                author: author || 'Huquq Journal',
-                                date: date || '2024',
-                                excerpt: title.length > 150 ? title.substring(0, 150) + '...' : title,
-                                link: link || 'https://tezislar.uz',
-                                views: Math.floor(Math.random() * 500) + 100
-                            });
-                        }
-                    } catch (parseError) {
-                        console.log(`Huquq: Element ${index} ni parse qilishda xatolik:`, parseError);
-                    }
-                }
-            });
-            
-            return articles;
-        }
 
-        // Xatolik xabarini ko'rsatish funksiyasi
-        function showErrorMessage() {
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const articlesSection = document.getElementById('articlesSection');
-            
-            loadingIndicator.style.display = 'none';
-            articlesSection.style.display = 'block';
-            
-            const articlesGrid = document.getElementById('articlesGrid');
-            articlesGrid.innerHTML = `
-                <div style="text-align: center; padding: 3rem; grid-column: 1 / -1;">
-                    <div style="color: #ef4444; font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
-                    <h3 style="color: #ef4444; margin-bottom: 1rem;">Maqolalarni yuklashda xatolik</h3>
-                    <p style="color: #6b7280; margin-bottom: 2rem;">
-                        Huquq Journal saytiga ulanishda muammo yuz berdi. Iltimos, keyinroq qayta urinib ko'ring.
-                    </p>
-                    <button onclick="loadArticles()" class="btn btn-primary">
-                        <i class="fas fa-redo"></i> Qayta yuklash
-                    </button>
-                </div>
-            `;
-            
-            const articlesCount = document.getElementById('articlesCount');
-            articlesCount.textContent = '0';
-        }
 
         function displayArticles(articles) {
             const articlesGrid = document.getElementById('articlesGrid');

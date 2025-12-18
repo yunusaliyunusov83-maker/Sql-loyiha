@@ -198,235 +198,73 @@
             loadingIndicator.style.display = 'block';
             articlesSection.style.display = 'none';
 
-            try {
-                // Real scraping urinishi
-                const proxyUrls = [
-                    'https://api.allorigins.win/get?url=',
-                    'https://cors-anywhere.herokuapp.com/',
-                    'https://thingproxy.freeboard.io/fetch/'
-                ];
-                
-                let articles = [];
-                let success = false;
+            // Demo maqolalar - IT sohasida
+            const demoArticles = [
+                {
+                    title: "Deep Learning Applications in Computer Vision",
+                    author: "Dr. Aziz Normatov",
+                    date: "2024-12-16",
+                    excerpt: "Chuqur o'rganish algoritmlarining kompyuter ko'rishi sohasidagi qo'llanilishi va yangi yutuqlar.",
+                    link: "https://konferens.uz",
+                    views: 312
+                },
+                {
+                    title: "Cloud Computing Security: Best Practices and Challenges",
+                    author: "Prof. Nigora Saidova",
+                    date: "2024-12-12",
+                    excerpt: "Bulutli hisoblash xavfsizligi: eng yaxshi amaliyotlar va zamonaviy qiyinchiliklar.",
+                    link: "https://konferens.uz",
+                    views: 278
+                },
+                {
+                    title: "Quantum Computing: Future of Information Processing",
+                    author: "Dr. Sardor Mirzayev",
+                    date: "2024-12-09",
+                    excerpt: "Kvant hisoblash texnologiyalari va ularning axborot ishlov berishdagi kelajagi.",
+                    link: "https://konferens.uz",
+                    views: 195
+                },
+                {
+                    title: "Big Data Analytics in Healthcare Systems",
+                    author: "Eng. Feruza Karimova",
+                    date: "2024-12-06",
+                    excerpt: "Sog'liqni saqlash tizimlarida katta ma'lumotlar tahlili va uning ahamiyati.",
+                    link: "https://konferens.uz",
+                    views: 234
+                },
+                {
+                    title: "Mobile App Development: Cross-Platform Solutions",
+                    author: "Prof. Otabek Yusupov",
+                    date: "2024-12-03",
+                    excerpt: "Mobil ilovalar ishlab chiqish: cross-platform yechimlari va ularning afzalliklari.",
+                    link: "https://konferens.uz",
+                    views: 189
+                }
+            ];
 
-                for (const proxyUrl of proxyUrls) {
-                    try {
-                        console.log(`IT: ${proxyUrl} bilan urinish...`);
-                        
-                        let response;
-                        let html;
-                        
-                        if (proxyUrl.includes('allorigins')) {
-                            response = await fetch(proxyUrl + encodeURIComponent('https://konferens.uz'));
-                            const data = await response.json();
-                            html = data.contents;
-                        } else {
-                            response = await fetch(proxyUrl + 'https://konferens.uz');
-                            html = await response.text();
-                        }
-                        
-                        if (html && html.length > 1000) {
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(html, 'text/html');
-                            
-                            articles = extractArticlesFromIT(doc);
-                            
-                            if (articles.length > 0) {
-                                success = true;
-                                console.log(`IT: ${proxyUrl} bilan muvaffaqiyatli! ${articles.length} ta maqola topildi.`);
-                                break;
-                            }
-                        }
-                    } catch (proxyError) {
-                        console.log(`IT: ${proxyUrl} ishlamadi:`, proxyError.message);
-                        continue;
-                    }
-                }
+            try {
+                console.log('IT Journal: Demo maqolalar yuklanmoqda...');
                 
-                if (!success || articles.length === 0) {
-                    console.log('IT: Real scraping ishlamadi, xatolik xabari ko\'rsatiladi');
-                    showErrorMessage();
-                    return;
-                }
+                // Timeout bilan demo ma'lumotlarni ko'rsatish
+                setTimeout(() => {
+                    displayArticles(demoArticles);
+                    articlesCount.textContent = demoArticles.length;
+                    
+                    loadingIndicator.style.display = 'none';
+                    articlesSection.style.display = 'block';
+                }, 2000);
                 
-                displayArticles(articles);
-                articlesCount.textContent = articles.length;
+            } catch (error) {
+                console.error('IT Journal: Xatolik:', error);
+                displayArticles(demoArticles);
+                articlesCount.textContent = demoArticles.length;
                 
                 loadingIndicator.style.display = 'none';
                 articlesSection.style.display = 'block';
-                
-            } catch (error) {
-                console.error('IT: Umumiy scraping xatosi:', error);
-                showErrorMessage();
             }
         }
 
-        // IT saytidan maqolalarni ajratib olish
-        function extractArticlesFromIT(doc) {
-            const articles = [];
-            console.log('IT saytini parse qilish boshlandi...');
-            
-            const possibleSelectors = [
-                '.obj_article_summary',
-                '.article-summary',
-                '.article_summary',
-                '.cmp_article_list .obj_article_summary',
-                '.issue-toc .obj_article_summary',
-                '.article-item',
-                '.publication-item',
-                '.journal-article',
-                '.article-entry',
-                '.content-item',
-                'article',
-                '.article',
-                '.entry',
-                '.post'
-            ];
-            
-            let foundElements = [];
-            
-            for (const selector of possibleSelectors) {
-                const elements = doc.querySelectorAll(selector);
-                if (elements.length > 0) {
-                    console.log(`IT: ${selector} bilan ${elements.length} ta element topildi`);
-                    foundElements = Array.from(elements);
-                    break;
-                }
-            }
-            
-            if (foundElements.length === 0) {
-                console.log('IT: Maxsus selectorlar ishlamadi, barcha havolalarni qidiryapman...');
-                const allLinks = doc.querySelectorAll('a[href*="article"], a[href*="view"], a[href*="publication"]');
-                foundElements = Array.from(allLinks).slice(0, 15);
-            }
-            
-            foundElements.forEach((element, index) => {
-                if (index < 10) {
-                    try {
-                        let title = '';
-                        const titleSelectors = [
-                            '.obj_article_summary h3 a',
-                            '.title a',
-                            'h3 a',
-                            'h2 a', 
-                            'h4 a',
-                            '.article-title',
-                            '.headline',
-                            'a'
-                        ];
-                        
-                        for (const titleSelector of titleSelectors) {
-                            const titleElement = element.querySelector ? element.querySelector(titleSelector) : null;
-                            if (titleElement && titleElement.textContent.trim()) {
-                                title = titleElement.textContent.trim();
-                                break;
-                            }
-                        }
-                        
-                        if (!title && element.textContent) {
-                            title = element.textContent.trim();
-                        }
-                        
-                        let author = '';
-                        const authorSelectors = [
-                            '.authors',
-                            '.author',
-                            '.by-author',
-                            '.writer',
-                            '.obj_article_summary .authors'
-                        ];
-                        
-                        for (const authorSelector of authorSelectors) {
-                            const authorElement = element.querySelector ? element.querySelector(authorSelector) : null;
-                            if (authorElement && authorElement.textContent.trim()) {
-                                author = authorElement.textContent.trim();
-                                break;
-                            }
-                        }
-                        
-                        
-                        let date = '';
-                        const dateSelectors = [
-                            '.published',
-                            '.date',
-                            '.pub-date',
-                            '.time',
-                            '.obj_article_summary .published'
-                        ];
 
-
-                        
-                        for (const dateSelector of dateSelectors) {
-                            const dateElement = element.querySelector ? element.querySelector(dateSelector) : null;
-                            if (dateElement && dateElement.textContent.trim()) {
-                                date = dateElement.textContent.trim();
-                                break;
-                            }
-                        }
-
-                        
-                        let link = '';
-                        if (element.href) {
-                            link = element.href;
-                        } else {
-                            const linkElement = element.querySelector('a');
-                            if (linkElement && linkElement.href) {
-                                link = linkElement.href;
-                            }
-                        }
-
-
-                        
-                        if (title && title.length > 10) {
-                            title = title.replace(/\s+/g, ' ').trim();
-                            
-                            if (link && !link.startsWith('http')) {
-                                link = 'https://konferens.uz' + (link.startsWith('/') ? link : '/' + link);
-                            }
-                            
-                            articles.push({
-                                title: title,
-                                author: author || 'IT Journal',
-                                date: date || '2024',
-                                excerpt: title.length > 150 ? title.substring(0, 150) + '...' : title,
-                                link: link || 'https://konferens.uz',
-                                views: Math.floor(Math.random() * 500) + 100
-                            });
-                        }
-                    } catch (parseError) {
-                        console.log(`IT: Element ${index} ni parse qilishda xatolik:`, parseError);
-                    }
-                }
-            });
-            
-            return articles;
-        }
-
-        // Xatolik xabarini ko'rsatish funksiyasi
-        function showErrorMessage() {
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const articlesSection = document.getElementById('articlesSection');
-            
-            loadingIndicator.style.display = 'none';
-            articlesSection.style.display = 'block';
-            
-            const articlesGrid = document.getElementById('articlesGrid');
-            articlesGrid.innerHTML = `
-                <div style="text-align: center; padding: 3rem; grid-column: 1 / -1;">
-                    <div style="color: #ef4444; font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
-                    <h3 style="color: #ef4444; margin-bottom: 1rem;">Maqolalarni yuklashda xatolik</h3>
-                    <p style="color: #6b7280; margin-bottom: 2rem;">
-                        IT Journal saytiga ulanishda muammo yuz berdi. Iltimos, keyinroq qayta urinib ko'ring.
-                    </p>
-                    <button onclick="loadArticles()" class="btn btn-primary">
-                        <i class="fas fa-redo"></i> Qayta yuklash
-                    </button>
-                </div>
-            `;
-            
-            const articlesCount = document.getElementById('articlesCount');
-            articlesCount.textContent = '0';
-        }
 
         function displayArticles(articles) {
             const articlesGrid = document.getElementById('articlesGrid');
