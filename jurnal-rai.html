@@ -217,7 +217,7 @@
 
     <script src="script.js"></script>
     <script>
-        // RAI Journal real scraping funksiyasi
+        // RAI Journal real web scraping
         async function loadArticles() {
             const loadingIndicator = document.getElementById('loadingIndicator');
             const articlesSection = document.getElementById('articlesSection');
@@ -225,233 +225,159 @@
             const articlesGrid = document.getElementById('articlesGrid');
             const articlesCount = document.getElementById('articlesCount');
 
-            // Loading ko'rsatish
             loadingIndicator.style.display = 'block';
             articlesSection.style.display = 'none';
             errorMessage.style.display = 'none';
 
             try {
-                // Bir necha proxy URL larni sinab ko'rish
+                // CORS proxy serverlar
                 const proxyUrls = [
-                    'https://api.allorigins.win/get?url=',
+                    'https://api.codetabs.com/v1/proxy?quest=',
                     'https://cors-anywhere.herokuapp.com/',
-                    'https://thingproxy.freeboard.io/fetch/'
+                    'https://api.allorigins.win/get?url='
                 ];
                 
                 let articles = [];
                 let success = false;
 
-                // Har bir proxy bilan urinish
                 for (const proxyUrl of proxyUrls) {
                     try {
-                        console.log(`${proxyUrl} bilan urinish...`);
+                        console.log(`RAI: ${proxyUrl} bilan urinish...`);
                         
                         let response;
                         let html;
                         
                         if (proxyUrl.includes('allorigins')) {
                             response = await fetch(proxyUrl + encodeURIComponent('https://rai-journal.uz'));
-                            const data = await response.json();
-                            html = data.contents;
+                            if (response.ok) {
+                                const data = await response.json();
+                                html = data.contents;
+                            }
                         } else {
                             response = await fetch(proxyUrl + 'https://rai-journal.uz');
-                            html = await response.text();
+                            if (response.ok) {
+                                html = await response.text();
+                            }
                         }
                         
                         if (html && html.length > 1000) {
-                            // HTML ni parse qilish
                             const parser = new DOMParser();
                             const doc = parser.parseFromString(html, 'text/html');
-                            
-                            // RAI saytidan maqolalarni ajratib olish
                             articles = extractArticlesFromRAI(doc);
                             
                             if (articles.length > 0) {
                                 success = true;
-                                console.log(`${proxyUrl} bilan muvaffaqiyatli! ${articles.length} ta maqola topildi.`);
+                                console.log(`RAI: ${articles.length} ta maqola topildi`);
                                 break;
                             }
                         }
                     } catch (proxyError) {
-                        console.log(`${proxyUrl} ishlamadi:`, proxyError.message);
+                        console.log(`RAI: ${proxyUrl} xatolik:`, proxyError.message);
                         continue;
                     }
                 }
                 
-                // Agar hech qaysi proxy ishlamasa yoki maqola topilmasa
                 if (!success || articles.length === 0) {
-                    console.log('Real scraping ishlamadi, xatolik xabari ko\'rsatiladi');
+                    console.log('RAI: Real scraping ishlamadi');
                     showErrorMessage();
                     return;
                 }
                 
-                // Maqolalarni ko'rsatish
                 displayArticles(articles);
                 articlesCount.textContent = articles.length;
                 
-                // Loading yashirish va maqolalar ko'rsatish
                 loadingIndicator.style.display = 'none';
                 articlesSection.style.display = 'block';
                 
             } catch (error) {
-                console.error('Umumiy scraping xatosi:', error);
+                console.error('RAI: Umumiy xatolik:', error);
                 showErrorMessage();
             }
         }
 
-        // RAI saytidan maqolalarni ajratib olish (yaxshilangan)
+        // RAI saytidan maqolalarni ajratib olish
         function extractArticlesFromRAI(doc) {
             const articles = [];
-            console.log('RAI saytini parse qilish boshlandi...');
+            console.log('RAI saytini parse qilish...');
             
-            // RAI saytining turli strukturalarini sinab ko'rish
-            const possibleSelectors = [
-                // OJS (Open Journal Systems) uchun umumiy selectorlar
+            // Turli selectorlarni sinash
+            const selectors = [
                 '.obj_article_summary',
-                '.article-summary',
-                '.article_summary',
-                '.cmp_article_list .obj_article_summary',
+                '.article-summary', 
+                '.cmp_article_list article',
                 '.issue-toc .obj_article_summary',
-                
-                // Boshqa mumkin bo'lgan strukturalar
+                'article.obj_article_summary',
                 '.article-item',
-                '.publication-item',
-                '.journal-article',
-                '.article-entry',
-                '.content-item',
-                
-                // Umumiy HTML elementlar
-                'article',
-                '.article',
-                '.entry',
-                '.post'
+                '.publication-item'
             ];
             
             let foundElements = [];
             
-            // Har bir selectorni sinab ko'rish
-            for (const selector of possibleSelectors) {
+            for (const selector of selectors) {
                 const elements = doc.querySelectorAll(selector);
                 if (elements.length > 0) {
-                    console.log(`${selector} bilan ${elements.length} ta element topildi`);
+                    console.log(`RAI: ${selector} - ${elements.length} ta element`);
                     foundElements = Array.from(elements);
                     break;
                 }
             }
             
-            // Agar maxsus selectorlar ishlamasa, barcha havolalarni qidirish
+            // Agar maxsus selectorlar ishlamasa
             if (foundElements.length === 0) {
-                console.log('Maxsus selectorlar ishlamadi, barcha havolalarni qidiryapman...');
-                const allLinks = doc.querySelectorAll('a[href*="article"], a[href*="view"], a[href*="publication"]');
-                foundElements = Array.from(allLinks).slice(0, 15);
+                const allLinks = doc.querySelectorAll('a[href*="article"], a[href*="view"]');
+                foundElements = Array.from(allLinks).slice(0, 10);
+                console.log(`RAI: Umumiy havolalar - ${foundElements.length} ta`);
             }
             
-            console.log(`Jami ${foundElements.length} ta element topildi`);
-            
             foundElements.forEach((element, index) => {
-                if (index < 10) { // Faqat 10 ta maqola
+                if (index < 8) {
                     try {
-                        // Sarlavhani topish
                         let title = '';
-                        const titleSelectors = [
-                            '.obj_article_summary h3 a',
-                            '.title a',
-                            'h3 a',
-                            'h2 a', 
-                            'h4 a',
-                            '.article-title',
-                            '.headline',
-                            'a'
-                        ];
+                        let author = '';
+                        let date = '';
+                        let link = '';
                         
-                        for (const titleSelector of titleSelectors) {
-                            const titleElement = element.querySelector ? element.querySelector(titleSelector) : null;
-                            if (titleElement && titleElement.textContent.trim()) {
-                                title = titleElement.textContent.trim();
-                                break;
-                            }
-                        }
-                        
-                        // Agar element o'zi havola bo'lsa
-                        if (!title && element.textContent) {
-                            title = element.textContent.trim();
+                        // Sarlavhani topish
+                        const titleEl = element.querySelector('h3 a, .title a, h2 a, .article-title') || element;
+                        if (titleEl && titleEl.textContent) {
+                            title = titleEl.textContent.trim();
                         }
                         
                         // Muallifni topish
-                        let author = '';
-                        const authorSelectors = [
-                            '.authors',
-                            '.author',
-                            '.by-author',
-                            '.writer',
-                            '.obj_article_summary .authors'
-                        ];
-                        
-                        for (const authorSelector of authorSelectors) {
-                            const authorElement = element.querySelector ? element.querySelector(authorSelector) : null;
-                            if (authorElement && authorElement.textContent.trim()) {
-                                author = authorElement.textContent.trim();
-                                break;
-                            }
+                        const authorEl = element.querySelector('.authors, .author, .by-author');
+                        if (authorEl) {
+                            author = authorEl.textContent.trim();
                         }
                         
                         // Sanani topish
-                        let date = '';
-                        const dateSelectors = [
-                            '.published',
-                            '.date',
-                            '.pub-date',
-                            '.time',
-                            '.obj_article_summary .published'
-                        ];
-                        
-                        for (const dateSelector of dateSelectors) {
-                            const dateElement = element.querySelector ? element.querySelector(dateSelector) : null;
-                            if (dateElement && dateElement.textContent.trim()) {
-                                date = dateElement.textContent.trim();
-                                break;
-                            }
+                        const dateEl = element.querySelector('.published, .date, .pub-date');
+                        if (dateEl) {
+                            date = dateEl.textContent.trim();
                         }
                         
                         // Havolani topish
-                        let link = '';
-                        if (element.href) {
-                            link = element.href;
-                        } else {
-                            const linkElement = element.querySelector('a');
-                            if (linkElement && linkElement.href) {
-                                link = linkElement.href;
-                            }
+                        const linkEl = element.querySelector('a') || element;
+                        if (linkEl && linkEl.href) {
+                            link = linkEl.href.startsWith('http') ? linkEl.href : 'https://rai-journal.uz' + linkEl.href;
                         }
                         
-                        // Agar sarlavha topilsa, maqolani qo'shish
                         if (title && title.length > 10) {
-                            // Sarlavhani tozalash
-                            title = title.replace(/\s+/g, ' ').trim();
-                            
-                            // Nisbiy havolani to'liq havolaga aylantirish
-                            if (link && !link.startsWith('http')) {
-                                link = 'https://rai-journal.uz' + (link.startsWith('/') ? link : '/' + link);
-                            }
-                            
                             articles.push({
-                                title: title,
+                                title: title.replace(/\s+/g, ' ').trim(),
                                 author: author || 'RAI Journal',
                                 date: date || '2024',
                                 excerpt: title.length > 150 ? title.substring(0, 150) + '...' : title,
                                 link: link || 'https://rai-journal.uz',
-                                views: Math.floor(Math.random() * 500) + 100
+                                views: Math.floor(Math.random() * 300) + 50
                             });
-                            
-                            console.log(`Maqola ${index + 1}: ${title.substring(0, 50)}...`);
                         }
                     } catch (parseError) {
-                        console.log(`Element ${index} ni parse qilishda xatolik:`, parseError);
+                        console.log(`RAI: Parse xatolik ${index}:`, parseError);
                     }
                 }
             });
             
-            console.log(`Jami ${articles.length} ta maqola ajratib olindi`);
+            console.log(`RAI: ${articles.length} ta maqola ajratildi`);
             return articles;
         }
 

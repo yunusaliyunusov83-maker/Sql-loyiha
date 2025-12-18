@@ -189,7 +189,7 @@
 
     <script src="script.js"></script>
     <script>
-        // Bulconre Journal real scraping funksiyasi
+        // Bulconre Journal real web scraping
         async function loadArticles() {
             const loadingIndicator = document.getElementById('loadingIndicator');
             const articlesSection = document.getElementById('articlesSection');
@@ -201,9 +201,9 @@
 
             try {
                 const proxyUrls = [
-                    'https://api.allorigins.win/get?url=',
+                    'https://api.codetabs.com/v1/proxy?quest=',
                     'https://cors-anywhere.herokuapp.com/',
-                    'https://thingproxy.freeboard.io/fetch/'
+                    'https://api.allorigins.win/get?url='
                 ];
                 
                 let articles = [];
@@ -218,33 +218,36 @@
                         
                         if (proxyUrl.includes('allorigins')) {
                             response = await fetch(proxyUrl + encodeURIComponent('https://bulconre.com/index.php/mult'));
-                            const data = await response.json();
-                            html = data.contents;
+                            if (response.ok) {
+                                const data = await response.json();
+                                html = data.contents;
+                            }
                         } else {
                             response = await fetch(proxyUrl + 'https://bulconre.com/index.php/mult');
-                            html = await response.text();
+                            if (response.ok) {
+                                html = await response.text();
+                            }
                         }
                         
                         if (html && html.length > 1000) {
                             const parser = new DOMParser();
                             const doc = parser.parseFromString(html, 'text/html');
-                            
                             articles = extractArticlesFromBulconre(doc);
                             
                             if (articles.length > 0) {
                                 success = true;
-                                console.log(`Bulconre: ${proxyUrl} bilan muvaffaqiyatli! ${articles.length} ta maqola topildi.`);
+                                console.log(`Bulconre: ${articles.length} ta maqola topildi`);
                                 break;
                             }
                         }
                     } catch (proxyError) {
-                        console.log(`Bulconre: ${proxyUrl} ishlamadi:`, proxyError.message);
+                        console.log(`Bulconre: ${proxyUrl} xatolik:`, proxyError.message);
                         continue;
                     }
                 }
                 
                 if (!success || articles.length === 0) {
-                    console.log('Bulconre: Real scraping ishlamadi, xatolik xabari ko\'rsatiladi');
+                    console.log('Bulconre: Real scraping ishlamadi');
                     showErrorMessage();
                     return;
                 }
@@ -256,148 +259,84 @@
                 articlesSection.style.display = 'block';
                 
             } catch (error) {
-                console.error('Bulconre: Umumiy scraping xatosi:', error);
+                console.error('Bulconre: Umumiy xatolik:', error);
                 showErrorMessage();
             }
         }
 
-        // Bulconre saytidan maqolalarni ajratib olish
         function extractArticlesFromBulconre(doc) {
             const articles = [];
-            console.log('Bulconre saytini parse qilish boshlandi...');
+            console.log('Bulconre saytini parse qilish...');
             
-            const possibleSelectors = [
+            const selectors = [
                 '.obj_article_summary',
-                '.article-summary',
-                '.article_summary',
-                '.cmp_article_list .obj_article_summary',
+                '.article-summary', 
+                '.cmp_article_list article',
                 '.issue-toc .obj_article_summary',
-                '.article-item',
-                '.publication-item',
-                '.journal-article',
-                '.article-entry',
-                '.content-item',
-                'article',
-                '.article',
-                '.entry',
-                '.post'
+                'article.obj_article_summary',
+                '.article-item'
             ];
             
             let foundElements = [];
             
-            for (const selector of possibleSelectors) {
+            for (const selector of selectors) {
                 const elements = doc.querySelectorAll(selector);
                 if (elements.length > 0) {
-                    console.log(`Bulconre: ${selector} bilan ${elements.length} ta element topildi`);
+                    console.log(`Bulconre: ${selector} - ${elements.length} ta element`);
                     foundElements = Array.from(elements);
                     break;
                 }
             }
             
             if (foundElements.length === 0) {
-                console.log('Bulconre: Maxsus selectorlar ishlamadi, barcha havolalarni qidiryapman...');
-                const allLinks = doc.querySelectorAll('a[href*="article"], a[href*="view"], a[href*="publication"]');
-                foundElements = Array.from(allLinks).slice(0, 15);
+                const allLinks = doc.querySelectorAll('a[href*="article"], a[href*="view"]');
+                foundElements = Array.from(allLinks).slice(0, 10);
             }
             
-            console.log(`Bulconre: Jami ${foundElements.length} ta element topildi`);
-            
             foundElements.forEach((element, index) => {
-                if (index < 10) {
+                if (index < 8) {
                     try {
                         let title = '';
-                        const titleSelectors = [
-                            '.obj_article_summary h3 a',
-                            '.title a',
-                            'h3 a',
-                            'h2 a', 
-                            'h4 a',
-                            '.article-title',
-                            '.headline',
-                            'a'
-                        ];
-                        
-                        for (const titleSelector of titleSelectors) {
-                            const titleElement = element.querySelector ? element.querySelector(titleSelector) : null;
-                            if (titleElement && titleElement.textContent.trim()) {
-                                title = titleElement.textContent.trim();
-                                break;
-                            }
-                        }
-                        
-                        if (!title && element.textContent) {
-                            title = element.textContent.trim();
-                        }
-                        
                         let author = '';
-                        const authorSelectors = [
-                            '.authors',
-                            '.author',
-                            '.by-author',
-                            '.writer',
-                            '.obj_article_summary .authors'
-                        ];
-                        
-                        for (const authorSelector of authorSelectors) {
-                            const authorElement = element.querySelector ? element.querySelector(authorSelector) : null;
-                            if (authorElement && authorElement.textContent.trim()) {
-                                author = authorElement.textContent.trim();
-                                break;
-                            }
-                        }
-                        
                         let date = '';
-                        const dateSelectors = [
-                            '.published',
-                            '.date',
-                            '.pub-date',
-                            '.time',
-                            '.obj_article_summary .published'
-                        ];
+                        let link = '';
                         
-                        for (const dateSelector of dateSelectors) {
-                            const dateElement = element.querySelector ? element.querySelector(dateSelector) : null;
-                            if (dateElement && dateElement.textContent.trim()) {
-                                date = dateElement.textContent.trim();
-                                break;
-                            }
+                        const titleEl = element.querySelector('h3 a, .title a, h2 a, .article-title') || element;
+                        if (titleEl && titleEl.textContent) {
+                            title = titleEl.textContent.trim();
                         }
                         
-                        let link = '';
-                        if (element.href) {
-                            link = element.href;
-                        } else {
-                            const linkElement = element.querySelector('a');
-                            if (linkElement && linkElement.href) {
-                                link = linkElement.href;
-                            }
+                        const authorEl = element.querySelector('.authors, .author, .by-author');
+                        if (authorEl) {
+                            author = authorEl.textContent.trim();
+                        }
+                        
+                        const dateEl = element.querySelector('.published, .date, .pub-date');
+                        if (dateEl) {
+                            date = dateEl.textContent.trim();
+                        }
+                        
+                        const linkEl = element.querySelector('a') || element;
+                        if (linkEl && linkEl.href) {
+                            link = linkEl.href.startsWith('http') ? linkEl.href : 'https://bulconre.com' + linkEl.href;
                         }
                         
                         if (title && title.length > 10) {
-                            title = title.replace(/\s+/g, ' ').trim();
-                            
-                            if (link && !link.startsWith('http')) {
-                                link = 'https://bulconre.com' + (link.startsWith('/') ? link : '/' + link);
-                            }
-                            
                             articles.push({
-                                title: title,
+                                title: title.replace(/\s+/g, ' ').trim(),
                                 author: author || 'Bulconre Journal',
                                 date: date || '2024',
                                 excerpt: title.length > 150 ? title.substring(0, 150) + '...' : title,
                                 link: link || 'https://bulconre.com',
-                                views: Math.floor(Math.random() * 500) + 100
+                                views: Math.floor(Math.random() * 300) + 50
                             });
-                            
-                            console.log(`Bulconre Maqola ${index + 1}: ${title.substring(0, 50)}...`);
                         }
                     } catch (parseError) {
-                        console.log(`Bulconre: Element ${index} ni parse qilishda xatolik:`, parseError);
+                        console.log(`Bulconre: Parse xatolik ${index}:`, parseError);
                     }
                 }
             });
             
-            console.log(`Bulconre: Jami ${articles.length} ta maqola ajratib olindi`);
             return articles;
         }
 
