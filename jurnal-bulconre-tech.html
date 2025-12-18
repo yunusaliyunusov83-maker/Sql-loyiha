@@ -198,71 +198,225 @@
             loadingIndicator.style.display = 'block';
             articlesSection.style.display = 'none';
 
-            // Demo maqolalar - real scraping ishlamasa
-            const demoArticles = [
-                {
-                    title: "Artificial Intelligence in Modern Engineering Systems",
-                    author: "Dr. Ahmad Karimov",
-                    date: "2024-12-15",
-                    excerpt: "Sun'iy intellekt texnologiyalarining zamonaviy muhandislik tizimlaridagi qo'llanilishi va kelajak istiqbollari haqida tadqiqot.",
-                    link: "https://bulconre.com/index.php/tech",
-                    views: 245
-                },
-                {
-                    title: "Blockchain Technology in Supply Chain Management",
-                    author: "Prof. Malika Tosheva",
-                    date: "2024-12-10",
-                    excerpt: "Blockchain texnologiyasining ta'minot zanjiri boshqaruvida qo'llanilishi va uning afzalliklari.",
-                    link: "https://bulconre.com/index.php/tech",
-                    views: 189
-                },
-                {
-                    title: "IoT Sensors in Smart City Infrastructure",
-                    author: "Eng. Bobur Rahimov",
-                    date: "2024-12-08",
-                    excerpt: "Aqlli shahar infratuzilmasida IoT sensorlarining roli va ularning samaradorligi.",
-                    link: "https://bulconre.com/index.php/tech",
-                    views: 167
-                },
-                {
-                    title: "Machine Learning Algorithms for Predictive Maintenance",
-                    author: "Dr. Sevara Nazarova",
-                    date: "2024-12-05",
-                    excerpt: "Mashinani o'rganish algoritmlarining texnik xizmat ko'rsatishni bashorat qilishda qo'llanilishi.",
-                    link: "https://bulconre.com/index.php/tech",
-                    views: 203
-                },
-                {
-                    title: "Cybersecurity Challenges in Industrial Control Systems",
-                    author: "Prof. Jasur Abdullayev",
-                    date: "2024-12-01",
-                    excerpt: "Sanoat boshqaruv tizimlarida kiberxavfsizlik muammolari va ularning yechimlari.",
-                    link: "https://bulconre.com/index.php/tech",
-                    views: 156
-                }
-            ];
-
             try {
-                // Real scraping urinishi
-                console.log('Bulconre Tech: Real scraping urinish...');
+                const proxyUrls = [
+                    'https://api.allorigins.win/get?url=',
+                    'https://cors-anywhere.herokuapp.com/',
+                    'https://thingproxy.freeboard.io/fetch/'
+                ];
                 
-                // Timeout bilan demo ma'lumotlarni ko'rsatish
-                setTimeout(() => {
-                    displayArticles(demoArticles);
-                    articlesCount.textContent = demoArticles.length;
-                    
-                    loadingIndicator.style.display = 'none';
-                    articlesSection.style.display = 'block';
-                }, 2000);
+                let articles = [];
+                let success = false;
+
+                for (const proxyUrl of proxyUrls) {
+                    try {
+                        console.log(`Bulconre Tech: ${proxyUrl} bilan urinish...`);
+                        
+                        let response;
+                        let html;
+                        
+                        if (proxyUrl.includes('allorigins')) {
+                            response = await fetch(proxyUrl + encodeURIComponent('https://bulconre.com/index.php/tech'));
+                            const data = await response.json();
+                            html = data.contents;
+                        } else {
+                            response = await fetch(proxyUrl + 'https://bulconre.com/index.php/tech');
+                            html = await response.text();
+                        }
+                        
+                        if (html && html.length > 1000) {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            
+                            articles = extractArticlesFromBulconreTech(doc);
+                            
+                            if (articles.length > 0) {
+                                success = true;
+                                console.log(`Bulconre Tech: ${proxyUrl} bilan muvaffaqiyatli! ${articles.length} ta maqola topildi.`);
+                                break;
+                            }
+                        }
+                    } catch (proxyError) {
+                        console.log(`Bulconre Tech: ${proxyUrl} ishlamadi:`, proxyError.message);
+                        continue;
+                    }
+                }
                 
-            } catch (error) {
-                console.error('Bulconre Tech: Xatolik:', error);
-                displayArticles(demoArticles);
-                articlesCount.textContent = demoArticles.length;
+                if (!success || articles.length === 0) {
+                    console.log('Bulconre Tech: Real scraping ishlamadi, xatolik xabari ko\'rsatiladi');
+                    showErrorMessage();
+                    return;
+                }
+                
+                displayArticles(articles);
+                articlesCount.textContent = articles.length;
                 
                 loadingIndicator.style.display = 'none';
                 articlesSection.style.display = 'block';
+                
+            } catch (error) {
+                console.error('Bulconre Tech: Umumiy scraping xatosi:', error);
+                showErrorMessage();
             }
+        }
+
+        function extractArticlesFromBulconreTech(doc) {
+            const articles = [];
+            console.log('Bulconre Tech saytini parse qilish boshlandi...');
+            
+            const possibleSelectors = [
+                '.obj_article_summary',
+                '.article-summary',
+                '.article_summary',
+                '.cmp_article_list .obj_article_summary',
+                '.issue-toc .obj_article_summary',
+                '.article-item',
+                '.publication-item',
+                '.journal-article',
+                '.article-entry',
+                '.content-item',
+                'article',
+                '.article',
+                '.entry',
+                '.post'
+            ];
+            
+            let foundElements = [];
+            
+            for (const selector of possibleSelectors) {
+                const elements = doc.querySelectorAll(selector);
+                if (elements.length > 0) {
+                    console.log(`Bulconre Tech: ${selector} bilan ${elements.length} ta element topildi`);
+                    foundElements = Array.from(elements);
+                    break;
+                }
+            }
+            
+            if (foundElements.length === 0) {
+                console.log('Bulconre Tech: Maxsus selectorlar ishlamadi, barcha havolalarni qidiryapman...');
+                const allLinks = doc.querySelectorAll('a[href*="article"], a[href*="view"], a[href*="publication"]');
+                foundElements = Array.from(allLinks).slice(0, 15);
+            }
+            
+            foundElements.forEach((element, index) => {
+                if (index < 10) {
+                    try {
+                        let title = '';
+                        const titleSelectors = [
+                            '.obj_article_summary h3 a',
+                            '.title a',
+                            'h3 a',
+                            'h2 a', 
+                            'h4 a',
+                            '.article-title',
+                            '.headline',
+                            'a'
+                        ];
+                        
+                        for (const titleSelector of titleSelectors) {
+                            const titleElement = element.querySelector ? element.querySelector(titleSelector) : null;
+                            if (titleElement && titleElement.textContent.trim()) {
+                                title = titleElement.textContent.trim();
+                                break;
+                            }
+                        }
+                        
+                        if (!title && element.textContent) {
+                            title = element.textContent.trim();
+                        }
+                        
+                        let author = '';
+                        const authorSelectors = [
+                            '.authors',
+                            '.author',
+                            '.by-author',
+                            '.writer',
+                            '.obj_article_summary .authors'
+                        ];
+                        
+                        for (const authorSelector of authorSelectors) {
+                            const authorElement = element.querySelector ? element.querySelector(authorSelector) : null;
+                            if (authorElement && authorElement.textContent.trim()) {
+                                author = authorElement.textContent.trim();
+                                break;
+                            }
+                        }
+                        
+                        let date = '';
+                        const dateSelectors = [
+                            '.published',
+                            '.date',
+                            '.pub-date',
+                            '.time',
+                            '.obj_article_summary .published'
+                        ];
+                        
+                        for (const dateSelector of dateSelectors) {
+                            const dateElement = element.querySelector ? element.querySelector(dateSelector) : null;
+                            if (dateElement && dateElement.textContent.trim()) {
+                                date = dateElement.textContent.trim();
+                                break;
+                            }
+                        }
+                        
+                        let link = '';
+                        if (element.href) {
+                            link = element.href;
+                        } else {
+                            const linkElement = element.querySelector('a');
+                            if (linkElement && linkElement.href) {
+                                link = linkElement.href;
+                            }
+                        }
+                        
+                        if (title && title.length > 10) {
+                            title = title.replace(/\s+/g, ' ').trim();
+                            
+                            if (link && !link.startsWith('http')) {
+                                link = 'https://bulconre.com' + (link.startsWith('/') ? link : '/' + link);
+                            }
+                            
+                            articles.push({
+                                title: title,
+                                author: author || 'Bulconre Tech',
+                                date: date || '2024',
+                                excerpt: title.length > 150 ? title.substring(0, 150) + '...' : title,
+                                link: link || 'https://bulconre.com/index.php/tech',
+                                views: Math.floor(Math.random() * 500) + 100
+                            });
+                        }
+                    } catch (parseError) {
+                        console.log(`Bulconre Tech: Element ${index} ni parse qilishda xatolik:`, parseError);
+                    }
+                }
+            });
+            
+            return articles;
+        }
+
+        function showErrorMessage() {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const articlesSection = document.getElementById('articlesSection');
+            
+            loadingIndicator.style.display = 'none';
+            articlesSection.style.display = 'block';
+            
+            const articlesGrid = document.getElementById('articlesGrid');
+            articlesGrid.innerHTML = `
+                <div style="text-align: center; padding: 3rem; grid-column: 1 / -1;">
+                    <div style="color: #ef4444; font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                    <h3 style="color: #ef4444; margin-bottom: 1rem;">Maqolalarni yuklashda xatolik</h3>
+                    <p style="color: #6b7280; margin-bottom: 2rem;">
+                        Bulconre Technical Sciences saytiga ulanishda muammo yuz berdi. Iltimos, keyinroq qayta urinib ko'ring.
+                    </p>
+                    <button onclick="loadArticles()" class="btn btn-primary">
+                        <i class="fas fa-redo"></i> Qayta yuklash
+                    </button>
+                </div>
+            `;
+            
+            const articlesCount = document.getElementById('articlesCount');
+            articlesCount.textContent = '0';
         }
 
 
